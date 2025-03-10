@@ -14,7 +14,7 @@ async def get_page_content(url):
 
 @app.route('/scrape', methods=['GET'])
 def scrape():
-    url = request.args.get('url', 'https://www.google.com')
+    url = request.args.get('url')
     content = asyncio.run(get_page_content(url))
     return jsonify({"content": content})
 
