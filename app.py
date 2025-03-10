@@ -1,25 +1,22 @@
 import asyncio
-from pyppeteer import launch
 from flask import Flask, request, jsonify
+from pyppeteer import launch
 
 app = Flask(__name__)
 
-@app.route('/scrape')
-async def scrape():
-    url = request.args.get("url")
-    if not url:
-        return jsonify({"error": "Aucune URL fournie"}), 400
+async def get_page_content(url):
+    browser = await launch(headless=True, args=['--no-sandbox'])  # Lancer Chromium en mode headless
+    page = await browser.newPage()
+    await page.goto(url, {"waitUntil": "networkidle2"})  # Attendre que la page soit entièrement chargée
+    content = await page.content()  # Récupérer tout le HTML de la page
+    await browser.close()
+    return content
 
-    try:
-        browser = await launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
-        page = await browser.newPage()
-        await page.goto(url, {"waitUntil": "networkidle2"})
-        content = await page.content()
-        await browser.close()
-        return jsonify({"content": content})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.route('/scrape', methods=['GET'])
+def scrape():
+    url = request.args.get('url', 'https://www.google.com')
+    content = asyncio.run(get_page_content(url))
+    return jsonify({"content": content})
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host='0.0.0.0', port=10000)
