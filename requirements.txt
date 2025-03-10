@@ -2,3 +2,4 @@ flask
 pyppeteer
 gunicorn
 quart
+hypercorn
