@@ -5,19 +5,11 @@ from pyppeteer import launch
 
 app = Quart(__name__)
 
-# Lancement unique de Pyppeteer au démarrage
-browser = None
-
-async def init_browser():
-    global browser
-    if browser is None:
-        browser = await launch(headless=True)
-
 async def google_search(query):
-    await init_browser()  # Assure que le navigateur est lancé
+    browser = await launch(headless=True)
     page = await browser.newPage()
     await page.goto(f"https://www.google.com/search?q={query}")
-
+    
     results = await page.evaluate('''() => {
         let items = [];
         document.querySelectorAll('h3').forEach((element) => {
@@ -30,7 +22,7 @@ async def google_search(query):
         return items;
     }''')
 
-    await page.close()
+    await browser.close()
     return results
 
 @app.route('/search', methods=['GET'])
@@ -43,6 +35,7 @@ async def search():
     return jsonify(results)
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(init_browser())  # Lancer le navigateur avant de démarrer le serveur
-    app.run(debug=True)
+    import hypercorn.asyncio
+    import sys
+    sys.argv.append("app:app")
+    hypercorn.asyncio.serve()
