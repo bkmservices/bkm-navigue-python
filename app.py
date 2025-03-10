@@ -1,41 +1,22 @@
 import asyncio
-import json
-from quart import Quart, request, jsonify
+from flask import Flask, request, jsonify
 from pyppeteer import launch
 
-app = Quart(__name__)
+app = Flask(__name__)
 
-async def google_search(query):
-    browser = await launch(headless=True)
+async def get_page_content(url):
+    browser = await launch(headless=True, args=['--no-sandbox'])  # Lancer Chromium en mode headless
     page = await browser.newPage()
-    await page.goto(f"https://www.google.com/search?q={query}")
-    
-    results = await page.evaluate('''() => {
-        let items = [];
-        document.querySelectorAll('h3').forEach((element) => {
-            let title = element.innerText;
-            let link = element.parentElement.href;
-            if (title && link) {
-                items.push({ title, link });
-            }
-        });
-        return items;
-    }''')
-
+    await page.goto(url, {"waitUntil": "networkidle2"})  # Attendre que la page soit entièrement chargée
+    content = await page.content()  # Récupérer tout le HTML de la page
     await browser.close()
-    return results
+    return content
 
-@app.route('/search', methods=['GET'])
-async def search():
-    query = request.args.get('q')
-    if not query:
-        return jsonify({"error": "Veuillez fournir un paramètre 'q' pour la recherche."}), 400
-    
-    results = await google_search(query)
-    return jsonify(results)
+@app.route('/scrape', methods=['GET'])
+def scrape():
+    url = request.args.get('url', 'https://www.google.com')
+    content = asyncio.run(get_page_content(url))
+    return jsonify({"content": content})
 
 if __name__ == '__main__':
-    import hypercorn.asyncio
-    import sys
-    sys.argv.append("app:app")
-    hypercorn.asyncio.serve()
+    app.run(host='0.0.0.0', port=10000)
